@@ -1,0 +1,43 @@
+#! /bin/bash
+
+# Prerequisites:
+#   Current git branch is 'stable'
+#   kotarak's remote is named "maintainer"
+#   HEAD is the commit to add this script and HEAD~ is from kotarak
+#   'justvim' branch is for pathogen-style vim setup
+#   vimrc has: (TODO)
+
+# Updates to latest version tag, rebased the commit adding this script on top
+# (to keep commit shas matching origin), builds and deploys client, and updates
+# justvim branch to pathogen-style.
+
+git fetch maintainer
+
+current=`git describe --exact-match --tags HEAD~`
+latest=`git tag -l "v*" | tail -1`
+if [ $current == $latest ] ; then
+    echo Already at latest. Aborting...
+    exit 1
+fi
+
+echo Updating from $current to $latest.
+
+# Update and put this commit after the latest.
+git rebase $latest
+
+cd client/
+make
+mkdir -p ~/.vim-cache/clojure
+mv ./ng ~/.vim-cache/clojure/.
+cd -
+
+# TODO: setup classpath?
+
+# Ensure justvim exists
+git branch justvim 2> /dev/null
+
+git checkout justvim
+# Don't include commit for this script in justvim.
+git reset --hard stable~
+# Need to -f since everytime we run this, we create a new backup.
+git filter-branch -f --subdirectory-filter vim
